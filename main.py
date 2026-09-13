@@ -15,10 +15,10 @@ ROLE_ID_MAGANG = "1506314812362199214"
 # ==========================================
 # KONFIGURASI AKUN & KEYWORDS
 # ==========================================
-ACCOUNTS_LOKER = ["lokerdotid", "lokerjogjax", "jogjalowker", "disiniloker", "magnecareer", "twitlowongan", "sobatmagang_id"]
+ACCOUNTS_LOKER = ["lokerdotid", "lokerjogjax", "jogjalowker", "disiniloker", "magnecareer", "twitlowongan", "sobatmagang_id", "glintsid"]
 ACCOUNTS_MAGANG = ["sobatmagang_id", "disiniloker", "magnecareer"]
 
-LOKER_KEYWORDS = [kw.lower() for kw in ["#InfoLoker", "#Loker", "INFO LOKER", "#lowker", "#lowongan", "Loker Jogja", "#LokerPam", "#Lowongan"]]
+LOKER_KEYWORDS = [kw.lower() for kw in ["#InfoLoker", "#Loker", "INFO LOKER", "#lowker", "#lowongan", "Loker Jogja", "#LokerPam", "#Lowongan", "#infocariloker", "#infoloker", "#lowongankerja", "disiniloker"]]
 MAGANG_KEYWORDS = [kw.lower() for kw in ["#infoMagang", "#magangID", "#magangYuk", "#magang", "#MagangPam"]]
 
 LOG_FILE = "posted_tweets.json"
@@ -38,6 +38,9 @@ def load_posted_tweets():
 def save_posted_tweet(tweet_id, posted_list):
     if tweet_id not in posted_list:
         posted_list.append(tweet_id)
+        # Batasi ukuran log agar file tidak membengkak (opsional: simpan 500 ID terakhir)
+        if len(posted_list) > 500:
+            posted_list = posted_list[-500:]
         with open(LOG_FILE, "w") as f:
             json.dump(posted_list, f)
 
@@ -45,18 +48,13 @@ def save_posted_tweet(tweet_id, posted_list):
 # FUNGSI PENGIRIMAN DISCORD + MENTION ROLE
 # ==========================================
 def send_to_discord(webhook_url, text, link, category, role_id):
-    """
-    Mengirimkan pesan ke Discord menggunakan Webhook.
-    - 'content' digunakan untuk mentag role agar mendatangkan notifikasi.
-    - 'embeds' digunakan untuk merapikan informasi postingan.
-    """
     role_mention = f"<@&{role_id}>"
     
     embed = {
         "title": f"📢 Lowongan Kategori: {category.upper()}",
         "description": text,
         "url": link,
-        "color": 3447003 if category == "loker" else 15158332 # Biru untuk Loker, Merah untuk Magang
+        "color": 3447003 if category == "loker" else 15158332
     }
     
     payload = {
@@ -81,14 +79,15 @@ def main():
         rss_url = f"https://xcancel.com/{account}/rss"
         feed = feedparser.parse(rss_url)
         
-        for entry in feed.entries:
+        # PERUBAHAN UTAMA: Hanya ambil 5 postingan teratas/terbaru dari setiap akun
+        latest_entries = feed.entries[:5]
+        
+        for entry in latest_entries:
             tweet_link = entry.link
             
-            # Validasi agar hanya mengambil tautan status tweet asli (bukan link root/rss akun)
             if not tweet_link or "/status/" not in tweet_link:
                 continue
                 
-            # Ekstraksi Tweet ID secara aman dari URL status (mengambil angka unik setelah kata 'status')
             try:
                 parts = tweet_link.split('/')
                 status_index = parts.index('status')
@@ -102,23 +101,19 @@ def main():
             text = entry.title.lower()
             original_text = entry.title
             
-            # Evaluasi Kategori
             is_loker = account in ACCOUNTS_LOKER or any(kw in text for kw in LOKER_KEYWORDS)
             is_magang = account in ACCOUNTS_MAGANG or any(kw in text for kw in MAGANG_KEYWORDS)
             
             sent = False
             
-            # Routing ke Loker
             if is_loker:
                 send_to_discord(DISCORD_WEBHOOK_LOKER, original_text, tweet_link, "loker", ROLE_ID_LOKER)
                 sent = True
                 
-            # Routing ke Magang
             if is_magang:
                 send_to_discord(DISCORD_WEBHOOK_MAGANG, original_text, tweet_link, "magang", ROLE_ID_MAGANG)
                 sent = True
                 
-            # Catat ID jika berhasil terkirim ke salah satu / kedua channel
             if sent:
                 save_posted_tweet(tweet_id, posted_tweets)
 
