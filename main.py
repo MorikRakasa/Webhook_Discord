@@ -9,7 +9,6 @@ import os
 DISCORD_WEBHOOK_LOKER = "https://discord.com/api/webhooks/1528366238907109489/sZQE74G03TQBKUooLYT3JZyCFXz-evLndBwuKmfNOc4rlz6A_DT-VUPdvXkJFqfBaVp8"
 DISCORD_WEBHOOK_MAGANG = "https://discord.com/api/webhooks/1528373679128445018/A5pcamPR5tIF2PVVIt3N38jhAcXdHJKiFicMHl-JxblLe07WnyWC5PZURHZ7xd92-pOY"
 
-# ID Role Discord untuk masing-masing kategori
 ROLE_ID_LOKER = "1506314812362199214"
 ROLE_ID_MAGANG = "1506314654761353246"
 
@@ -43,21 +42,25 @@ def save_posted_tweet(tweet_id, posted_list):
             json.dump(posted_list, f)
 
 # ==========================================
-# FUNGSI PENGIRIMAN DISCORD + MENTION ROLE
+# FUNGSI PENGIRIMAN DISCORD + LINK SUMBER
 # ==========================================
-def send_to_discord(webhook_url, text, link, category, role_id):
+def send_to_discord(webhook_url, text, x_link, xcancel_link, category, role_id):
     """
-    Mengirimkan pesan ke Discord menggunakan Webhook.
-    - 'content' digunakan untuk mentag role agar mendatangkan notifikasi.
-    - 'embeds' digunakan untuk merapikan informasi postingan.
+    Mengirimkan pesan ke Discord dengan menyertakan tautan sumber asli X (dan fallback xcancel).
     """
     role_mention = f"<@&{role_id}>"
     
+    # Menambahkan informasi sumber di bagian bawah deskripsi embed
+    description_with_source = (
+        f"{text}\n\n"
+        f"🔗 **Sumber Asli:** [Buka di X (Twitter)]({x_link}) | [Alternatif (Xcancel)]({xcancel_link})"
+    )
+    
     embed = {
         "title": f"📢 Lowongan Kategori: {category.upper()}",
-        "description": text,
-        "url": link,
-        "color": 3447003 if category == "loker" else 15158332 # Biru untuk Loker, Merah untuk Magang
+        "description": description_with_source,
+        "url": x_link, # Judul embed langsung mengarah ke link X
+        "color": 3447003 if category == "loker" else 15158332
     }
     
     payload = {
@@ -83,11 +86,13 @@ def main():
         feed = feedparser.parse(rss_url)
         
         for entry in feed.entries:
-            tweet_link = entry.link
+            xcancel_link = entry.link
             
-            # Ekstraksi Tweet ID secara aman dari URL Xcancel
             try:
-                tweet_id = tweet_link.split('/')[-1].replace('#m', '')
+                tweet_id = xcancel_link.split('/')[-1].replace('#m', '')
+                # Konversi link xcancel ke domain resmi X (Twitter)
+                # Contoh: https://xcancel.com/user/status/123 -> https://twitter.com/user/status/123
+                x_link = xcancel_link.replace("xcancel.com", "twitter.com")
             except Exception:
                 continue
             
@@ -97,23 +102,19 @@ def main():
             text = entry.title.lower()
             original_text = entry.title
             
-            # Evaluasi Kategori
             is_loker = account in ACCOUNTS_LOKER or any(kw in text for kw in LOKER_KEYWORDS)
             is_magang = account in ACCOUNTS_MAGANG or any(kw in text for kw in MAGANG_KEYWORDS)
             
             sent = False
             
-            # Routing ke Loker
             if is_loker:
-                send_to_discord(DISCORD_WEBHOOK_LOKER, original_text, tweet_link, "loker", ROLE_ID_LOKER)
+                send_to_discord(DISCORD_WEBHOOK_LOKER, original_text, x_link, xcancel_link, "loker", ROLE_ID_LOKER)
                 sent = True
                 
-            # Routing ke Magang
             if is_magang:
-                send_to_discord(DISCORD_WEBHOOK_MAGANG, original_text, tweet_link, "magang", ROLE_ID_MAGANG)
+                send_to_discord(DISCORD_WEBHOOK_MAGANG, original_text, x_link, xcancel_link, "magang", ROLE_ID_MAGANG)
                 sent = True
                 
-            # Catat ID jika berhasil terkirim ke salah satu / kedua channel
             if sent:
                 save_posted_tweet(tweet_id, posted_tweets)
 
