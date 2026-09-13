@@ -47,7 +47,7 @@ def send_to_discord(webhook_url, text, link, category, role_id):
     role_mention = f"<@&{role_id}>"
     embed = {
         "title": f"📢 Lowongan Kategori: {category.upper()}",
-        "description": text[:4000], # Batasi panjang deskripsi agar aman dari limit Discord
+        "description": text[:4000],
         "url": link,
         "color": 3447003 if category == "loker" else 15158332
     }
@@ -70,7 +70,6 @@ def main():
         rss_url = f"https://xcancel.com/{account}/rss"
         print(f"📡 Mengambil RSS dari: {rss_url}")
         
-        # PERBAIKAN DI SINI: Gunakan requests untuk mengambil data, lalu parse dengan feedparser.parse()
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         try:
             response_rss = requests.get(rss_url, headers=headers, timeout=10)
@@ -78,7 +77,6 @@ def main():
                 print(f"⚠️ Gagal akses RSS {account} (Status Code: {response_rss.status_code})")
                 continue
                 
-            # Gunakan feedparser.parse langsung dengan konten teks/bytes dari response
             feed = feedparser.parse(response_rss.content)
         except Exception as e:
             print(f"⚠️ Error saat mengambil RSS {account}: {e}")
@@ -131,3 +129,6 @@ def main():
                 save_posted_tweet(tweet_id, posted_tweets)
 
     print("🎉 Selesai memproses seluruh akun.")
+
+if __name__ == "__main__":
+    main()
