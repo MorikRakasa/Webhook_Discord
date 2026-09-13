@@ -70,16 +70,19 @@ def main():
         rss_url = f"https://xcancel.com/{account}/rss"
         print(f"📡 Mengambil RSS dari: {rss_url}")
         
-        # Tambahkan User-Agent headers agar tidak diblokir server Xcancel
-        d = feedparser.Parser()
+        # PERBAIKAN DI SINI: Gunakan requests untuk mengambil data, lalu parse dengan feedparser.parse()
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        response_rss = requests.get(rss_url, headers=headers, timeout=10)
-        
-        if response_rss.status_code != 200:
-            print(f"⚠️ Gagal akses RSS {account} (Status Code: {response_rss.status_code})")
+        try:
+            response_rss = requests.get(rss_url, headers=headers, timeout=10)
+            if response_rss.status_code != 200:
+                print(f"⚠️ Gagal akses RSS {account} (Status Code: {response_rss.status_code})")
+                continue
+                
+            # Gunakan feedparser.parse langsung dengan konten teks/bytes dari response
+            feed = feedparser.parse(response_rss.content)
+        except Exception as e:
+            print(f"⚠️ Error saat mengambil RSS {account}: {e}")
             continue
-            
-        feed = feedparser.parse(response_rss.content)
         
         if not feed.entries:
             print(f"⚠️ Tidak ada entri RSS ditemukan untuk akun @{account}")
@@ -94,14 +97,12 @@ def main():
             if not tweet_link:
                 continue
             
-            # Ambil ID unik berdasarkan link atau GUID postingan
             try:
                 if "/status/" in tweet_link:
                     parts = tweet_link.split('/')
                     status_index = parts.index('status')
                     tweet_id = parts[status_index + 1].replace('#m', '').split('?')[0]
                 else:
-                    # Fallback jika struktur link berbeda
                     tweet_id = entry.get("id", tweet_link).split('/')[-1].replace('#m', '').split('?')[0]
             except Exception as e:
                 print(f"⚠️ Gagal ekstrak ID dari link {tweet_link}: {e}")
@@ -130,6 +131,3 @@ def main():
                 save_posted_tweet(tweet_id, posted_tweets)
 
     print("🎉 Selesai memproses seluruh akun.")
-
-if __name__ == "__main__":
-    main()
