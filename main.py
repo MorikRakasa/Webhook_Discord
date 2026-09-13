@@ -15,10 +15,10 @@ ROLE_ID_MAGANG = "1506314812362199214"
 # ==========================================
 # KONFIGURASI AKUN & KEYWORDS
 # ==========================================
-ACCOUNTS_LOKER = ["lokerdotid", "lokerjogjax", "jogjalowker", "disiniloker", "magnecareer", "twitlowongan", "sobatmagang_id"]
+ACCOUNTS_LOKER = ["lokerdotid", "lokerjogjax", "jogjalowker", "disiniloker", "magnecareer", "twitlowongan", "sobatmagang_id", "glintsid"]
 ACCOUNTS_MAGANG = ["sobatmagang_id", "disiniloker", "magnecareer"]
 
-LOKER_KEYWORDS = [kw.lower() for kw in ["#InfoLoker", "#Loker", "INFO LOKER", "#lowker", "#lowongan", "Loker Jogja", "#LokerPam", "#Lowongan"]]
+LOKER_KEYWORDS = [kw.lower() for kw in ["#InfoLoker", "#Loker", "INFO LOKER", "#lowker", "#lowongan", "Loker Jogja", "#LokerPam", "#Lowongan", "#infocariloker", "#infoloker", "#lowongankerja", "disiniloker"]]
 MAGANG_KEYWORDS = [kw.lower() for kw in ["#infoMagang", "#magangID", "#magangYuk", "#magang", "#MagangPam"]]
 
 LOG_FILE = "posted_tweets.json"
