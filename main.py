@@ -38,68 +38,80 @@ def load_posted_tweets():
 def save_posted_tweet(tweet_id, posted_list):
     if tweet_id not in posted_list:
         posted_list.append(tweet_id)
-        # Batasi ukuran log agar file tidak membengkak (opsional: simpan 500 ID terakhir)
         if len(posted_list) > 500:
             posted_list = posted_list[-500:]
         with open(LOG_FILE, "w") as f:
             json.dump(posted_list, f)
 
-# ==========================================
-# FUNGSI PENGIRIMAN DISCORD + MENTION ROLE
-# ==========================================
 def send_to_discord(webhook_url, text, link, category, role_id):
     role_mention = f"<@&{role_id}>"
-    
     embed = {
         "title": f"📢 Lowongan Kategori: {category.upper()}",
-        "description": text,
+        "description": text[:4000], # Batasi panjang deskripsi agar aman dari limit Discord
         "url": link,
         "color": 3447003 if category == "loker" else 15158332
     }
-    
     payload = {
         "content": f"Info baru buat teman-teman! {role_mention}",
         "embeds": [embed]
     }
-    
     response = requests.post(webhook_url, json=payload)
     if response.status_code in [200, 204]:
         print(f"✅ Berhasil mengirim postingan ke channel {category}")
     else:
         print(f"❌ Gagal mengirim ke Discord ({category}). Status: {response.status_code}, Respon: {response.text}")
 
-# ==========================================
-# FUNGSI UTAMA (SCRAPING & ROUTING)
-# ==========================================
 def main():
     posted_tweets = load_posted_tweets()
     all_accounts = list(set(ACCOUNTS_LOKER + ACCOUNTS_MAGANG))
-    
+    print(f"🔍 Memulai pengecekan untuk {len(all_accounts)} akun...")
+
     for account in all_accounts:
         rss_url = f"https://xcancel.com/{account}/rss"
-        feed = feedparser.parse(rss_url)
+        print(f"📡 Mengambil RSS dari: {rss_url}")
         
-        # PERUBAHAN UTAMA: Hanya ambil 5 postingan teratas/terbaru dari setiap akun
-        latest_entries = feed.entries[:5]
+        # Tambahkan User-Agent headers agar tidak diblokir server Xcancel
+        d = feedparser.Parser()
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        response_rss = requests.get(rss_url, headers=headers, timeout=10)
         
-        for entry in latest_entries:
-            tweet_link = entry.link
+        if response_rss.status_code != 200:
+            print(f"⚠️ Gagal akses RSS {account} (Status Code: {response_rss.status_code})")
+            continue
             
-            if not tweet_link or "/status/" not in tweet_link:
+        feed = feedparser.parse(response_rss.content)
+        
+        if not feed.entries:
+            print(f"⚠️ Tidak ada entri RSS ditemukan untuk akun @{account}")
+            continue
+
+        latest_entries = feed.entries[:5]
+        print(f"✨ Ditemukan {len(latest_entries)} entri dari @{account}")
+
+        for entry in latest_entries:
+            tweet_link = entry.get("link", "")
+            
+            if not tweet_link:
                 continue
-                
+            
+            # Ambil ID unik berdasarkan link atau GUID postingan
             try:
-                parts = tweet_link.split('/')
-                status_index = parts.index('status')
-                tweet_id = parts[status_index + 1].replace('#m', '').split('?')[0]
-            except (ValueError, IndexError):
+                if "/status/" in tweet_link:
+                    parts = tweet_link.split('/')
+                    status_index = parts.index('status')
+                    tweet_id = parts[status_index + 1].replace('#m', '').split('?')[0]
+                else:
+                    # Fallback jika struktur link berbeda
+                    tweet_id = entry.get("id", tweet_link).split('/')[-1].replace('#m', '').split('?')[0]
+            except Exception as e:
+                print(f"⚠️ Gagal ekstrak ID dari link {tweet_link}: {e}")
                 continue
             
             if not tweet_id or tweet_id in posted_tweets:
                 continue
                 
-            text = entry.title.lower()
-            original_text = entry.title
+            text = entry.get("title", "").lower()
+            original_text = entry.get("title", "")
             
             is_loker = account in ACCOUNTS_LOKER or any(kw in text for kw in LOKER_KEYWORDS)
             is_magang = account in ACCOUNTS_MAGANG or any(kw in text for kw in MAGANG_KEYWORDS)
@@ -116,6 +128,8 @@ def main():
                 
             if sent:
                 save_posted_tweet(tweet_id, posted_tweets)
+
+    print("🎉 Selesai memproses seluruh akun.")
 
 if __name__ == "__main__":
     main()
