@@ -53,7 +53,7 @@ def send_to_discord(webhook_url, text, x_link, xcancel_link, category, role_id):
     # Menambahkan informasi sumber di bagian bawah deskripsi embed
     description_with_source = (
         f"{text}\n\n"
-        f"🔗 **Sumber Asli:** [Buka di X (Twitter)]({x_link}) | [Alternatif (Xcancel)]({xcancel_link})"
+        f"🔗 **Sumber Asli:** [Buka di X (Twitter)]({x_link})"# | [Alternatif (Xcancel)]({xcancel_link})"
     )
     
     embed = {
